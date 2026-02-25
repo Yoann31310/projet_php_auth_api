@@ -1,13 +1,35 @@
 <?php
-// Paramètres de connexion
-$serveur = 'localhost';
-$nom_bdd = 'r401_api';
-$utilisateur = 'root';
-$mot_de_passe = '';
+// Pour se connecter à la base de données 
+// (Venant tout droit du repo projetPHP, sans aucune modif pour le moment)
 
-try {
-    $pdo = new PDO("mysql:host=$serveur;dbname=$nom_bdd;charset=utf8", $utilisateur, $mot_de_passe);
-} catch (Exception $erreur) {
-    die('Erreur de connexion : ' . $erreur->getMessage());
+class Database
+{
+    private static $instance = null;
+    private $connexion;
+
+    // Constructeur privé car classe Singleton
+    private function __construct()
+    {
+        try {
+            $host = 'mysql-projetphp.alwaysdata.net';
+            $bd = 'projetphp_matchs';
+            $utilisateur = 'projetphp';
+            $mdp = 'Azertyuiop.0';
+
+            $this->connexion = new PDO("mysql:host=$host;dbname=$bd;charset=utf8", $utilisateur, $mdp);
+
+            // On force PDO à afficher les erreurs SQL (très important pour les tests)
+            $this->connexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (PDOException $e) {
+            die("Erreur : " . $e->getMessage());
+        }
+    }
+
+    // Servira pour après, pour accéder à l'instance de la BD existante
+    public static function getInstance()
+    {
+        if (self::$instance === null)
+            self::$instance = new Database();
+        return self::$instance->connexion;
+    }
 }
-?>

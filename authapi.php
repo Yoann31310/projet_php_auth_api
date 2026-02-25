@@ -1,85 +1,87 @@
 <?php
-// Imports des fichiers
+// Imports des fichiers nécessaires
 require_once 'connexionDB.php';
 require_once 'jwt_utils.php';
 
-// Fonction pour envoyer une réponse au client
+// Envoyer une réponse JSON au client
 function deliver_response($code_statut, $message_statut, $donnees = null)
 {
-    // Définit le code de statut HTTP 
-    http_response_code($code_statut);  // Utilise un message standardisé en fonction du code HTTP
-    // header("HTTP/1.1 $status_code $status_message"); //Pour personnaliser le message associé au code HTTP  
+    http_response_code($code_statut);
 
-    // Headers CORS complets (autorise toutes les origines et les méthodes) 
-    header("Access-Control-Allow-Origin: *");                                           // "*" car tout le monde a le droit de l'appeler
-    header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");     // Toutes les méthodes qu'on autorise
-    header("Access-Control-Allow-Headers: Content-Type");                               // Pour dire que j'envoie du JSON 
-    header("Content-Type: application/json; charset=utf-8");                            // Format de la réponse du json 
+    // Configuration des headers CORS et Type de contenu
+    header("Access-Control-Allow-Origin: *");
+    header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+    header("Content-Type: application/json; charset=utf-8");
 
-    $reponse['status_code'] = $code_statut;
-    $reponse['status_message'] = $message_statut;
-    $reponse['data'] = $donnees;
+    $reponse = [
+        'status_code' => $code_statut,
+        'status_message' => $message_statut,
+        'data' => $donnees
+    ];
 
-    // Mapping de la réponse au format JSON 
     $json_response = json_encode($reponse);
-    if ($json_response === false)
+    if ($json_response === false) {
         die('json encode ERROR : ' . json_last_error_msg());
-    // Affichage de la réponse (Retourné au client) 
+    }
+
     echo $json_response;
 }
 
-// Gestion du CORS
+// Gestion des requêtes de pré-vérification CORS
 $methode = $_SERVER['REQUEST_METHOD'];
-
 if ($methode == 'OPTIONS') {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-    http_response_code(204);
+    deliver_response(204, "CORS Autorisé");
     exit;
 }
 
-// Authentification se fait obligatoirement par une requête POST 
+// L'authentification veut QUE la méthode POST
 if ($methode != 'POST') {
     deliver_response(405, "Méthode non autorisée. Il faut utiliser POST.");
     exit;
 }
 
-// On lit le corps de la requête
+// Lecture et décodage des données JSON reçues
 $donnees_brutes = file_get_contents('php://input');
-
-// On transforme le JSON reçu en tableau associatif PHP
 $data = json_decode($donnees_brutes, true);
 
-// On vérifie que le login et le mot de passe sont bien présents
-if (!isset($data['login']) || !isset($data['password'])) {
-    deliver_response(400, "Erreur : Login ou mot de passe manquant.");
+// Vérification de la présence des identifiants
+// On vérifie que l'identifiant et le password sont bien présents dans le JSON reçu
+if (!isset($data['identifiant']) || !isset($data['password'])) {
+    deliver_response(400, "Erreur : Identifiant ou mot de passe manquant.");
     exit;
 }
 
-$login_saisi = $data['login'];
+$id_saisi = $data['identifiant'];
 $mdp_saisi = $data['password'];
 
+// Connexion à la base de données avec le getInstance
+$pdo = Database::getInstance();
 
-// On cherche l'utilisateur qui correspond au login donné
-$query = $pdo->prepare("SELECT * FROM user WHERE login = :login");
-$query->execute([':login' => $login_saisi]);
+// Recherche de l'entraîneur par son identifiant
+$query = $pdo->prepare("SELECT * FROM Entraineur WHERE identifiant = :id");
+$query->execute([':id' => $id_saisi]);
 
 $user = $query->fetch(PDO::FETCH_ASSOC);
 
-// On vérifie que user != false (existe) et on compare le mdp en déhashant
-if ($user && password_verify($mdp_saisi, $user['password'])) {
+// On vérifie que user existe et on compare le mdp en déhashant
+if ($user && password_verify($mdp_saisi, $user['mdp'])) {
 
     // On génère le jeton
-    $headers = array('algo' => 'HS256', 'type' => 'JWT');         // header
+    $headers = array('algo' => 'HS256', 'type' => 'JWT');
 
-    $payload = array(                                           // payload
-        'login' => $user['login'],      // On met le login 
-        'exp' => time() + 60            // Le jeton expire dans 60s
+    $payload = array(
+        'id_entraineur' => $user['Id_Entraineur'],
+        'identifiant' => $user['identifiant'],
+        'nom' => $user['nom'],
+        'prenom' => $user['prenom'],
+        'exp' => time() + 60              // Expire dans 60s
     );
 
+    $signature = 'random'; // La clé secrète
+
     // On appelle la fonction fournie dans jwt_utils.php pour créer la chaîne
-    $jwt = generate_jwt($headers, $payload, 'random'); // La clé secrète (signature) = 'random'
+    $jwt = generate_jwt($headers, $payload, $signature);
 
     // On renvoie le code 200 au client avec le jeton dans le champ "data"
     deliver_response(200, "Authentification réussie", $jwt);
@@ -88,5 +90,4 @@ if ($user && password_verify($mdp_saisi, $user['password'])) {
     // Si login inexistant ou mdp incorrect
     deliver_response(401, "Login ou mot de passe incorrect.");
 }
-
 ?>
