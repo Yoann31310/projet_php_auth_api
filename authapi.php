@@ -10,7 +10,7 @@ function deliver_response($code_statut, $message_statut, $donnees = null)
 
     // Configuration des headers CORS et Type de contenu
     header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    header("Access-Control-Allow-Methods: POST, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Authorization");
     header("Content-Type: application/json; charset=utf-8");
 
@@ -45,7 +45,6 @@ if ($methode != 'POST') {
 $donnees_brutes = file_get_contents('php://input');
 $data = json_decode($donnees_brutes, true);
 
-// Vérification de la présence des identifiants
 // On vérifie que l'identifiant et le password sont bien présents dans le JSON reçu
 if (!isset($data['identifiant']) || !isset($data['password'])) {
     deliver_response(400, "Erreur : Identifiant ou mot de passe manquant.");
@@ -66,8 +65,6 @@ $user = $query->fetch(PDO::FETCH_ASSOC);
 
 // On vérifie que user existe et on compare le mdp en déhashant
 if ($user && password_verify($mdp_saisi, $user['mdp'])) {
-
-    // On génère le jeton
     $headers = array('algo' => 'HS256', 'type' => 'JWT');
 
     $payload = array(
@@ -75,19 +72,14 @@ if ($user && password_verify($mdp_saisi, $user['mdp'])) {
         'identifiant' => $user['identifiant'],
         'nom' => $user['nom'],
         'prenom' => $user['prenom'],
-        'exp' => time() + 60              // Expire dans 60s
+        'exp' => time() + 600             // Expire dans 10min
     );
 
     $signature = 'random'; // La clé secrète
-
-    // On appelle la fonction fournie dans jwt_utils.php pour créer la chaîne
     $jwt = generate_jwt($headers, $payload, $signature);
-
-    // On renvoie le code 200 au client avec le jeton dans le champ "data"
     deliver_response(200, "Authentification réussie", $jwt);
 
-} else {
-    // Si login inexistant ou mdp incorrect
+} else { // Si login inexistant ou mdp incorrect
     deliver_response(401, "Login ou mot de passe incorrect.");
 }
 ?>
