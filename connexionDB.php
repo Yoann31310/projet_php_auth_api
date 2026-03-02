@@ -11,10 +11,10 @@ class Database
     private function __construct()
     {
         try {
-            $host = 'mysql-projetphp.alwaysdata.net';
-            $bd = 'projetphp_matchs';
-            $utilisateur = 'projetphp';
-            $mdp = 'Azertyuiop.0';
+            $host = 'mysql-alfred.alwaysdata.net';
+            $bd = 'alfred_api_auth';
+            $utilisateur = 'alfred';
+            $mdp = 'azertyuiop.@';
 
             $this->connexion = new PDO("mysql:host=$host;dbname=$bd;charset=utf8", $utilisateur, $mdp);
 

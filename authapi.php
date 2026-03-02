@@ -57,6 +57,7 @@ $mdp_saisi = $data['password'];
 // Connexion à la base de données avec le getInstance
 $pdo = Database::getInstance();
 
+
 // Recherche de l'entraîneur par son identifiant
 $query = $pdo->prepare("SELECT * FROM Entraineur WHERE identifiant = :id");
 $query->execute([':id' => $id_saisi]);
@@ -72,10 +73,10 @@ if ($user && password_verify($mdp_saisi, $user['mdp'])) {
         'identifiant' => $user['identifiant'],
         'nom' => $user['nom'],
         'prenom' => $user['prenom'],
-        'exp' => time() + 600             // Expire dans 10min
+        'exp' => time() + 600             // Expire dans 10min                  -------------------------------------
     );
 
-    $signature = 'random'; // La clé secrète
+    $signature = 'random'; // La clé secrète                                    -------------------------------------
     $jwt = generate_jwt($headers, $payload, $signature);
     deliver_response(200, "Authentification réussie", $jwt);
 
