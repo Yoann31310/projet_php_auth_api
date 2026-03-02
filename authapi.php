@@ -2,6 +2,8 @@
 // Imports des fichiers nécessaires
 require_once 'connexionDB.php';
 require_once 'jwt_utils.php';
+require_once 'Classes/Entraineur.php';
+require_once 'DAO/EntraineurDAO.php';
 
 // Envoyer une réponse JSON au client
 function deliver_response($code_statut, $message_statut, $donnees = null)
@@ -54,33 +56,26 @@ if (!isset($data['identifiant']) || !isset($data['password'])) {
 $id_saisi = $data['identifiant'];
 $mdp_saisi = $data['password'];
 
-// Connexion à la base de données avec le getInstance
-$pdo = Database::getInstance();
+// Recherche de l'entraîneur via le DAO
+$entraineur = Entraineur::verifier_identifiant($id_saisi);
 
-
-// Recherche de l'entraîneur par son identifiant
-$query = $pdo->prepare("SELECT * FROM Entraineur WHERE identifiant = :id");
-$query->execute([':id' => $id_saisi]);
-
-$user = $query->fetch(PDO::FETCH_ASSOC);
-
-// On vérifie que user existe et on compare le mdp en déhashant
-if ($user && password_verify($mdp_saisi, $user['mdp'])) {
+// On vérifie que entraineur existe et on compare le mdp
+if ($entraineur && $entraineur->verifier_mot_de_passe($mdp_saisi)) {
     $headers = array('algo' => 'HS256', 'type' => 'JWT');
 
     $payload = array(
-        'id_entraineur' => $user['Id_Entraineur'],
-        'identifiant' => $user['identifiant'],
-        'nom' => $user['nom'],
-        'prenom' => $user['prenom'],
-        'exp' => time() + 600             // Expire dans 10min                  -------------------------------------
+        'id_entraineur' => $entraineur->get_id_entraineur(),
+        'identifiant' => $entraineur->get_identifiant(),
+        'nom' => $entraineur->get_nom(),
+        'prenom' => $entraineur->get_prenom(),
+        'exp' => time() + 600                                              // Expire dans 10min 
     );
 
-    $signature = 'random'; // La clé secrète                                    -------------------------------------
+    $signature = 'random';                                                  // La clé secrète 
     $jwt = generate_jwt($headers, $payload, $signature);
     deliver_response(200, "Authentification réussie", $jwt);
-
-} else { // Si login inexistant ou mdp incorrect
+} else {
     deliver_response(401, "Login ou mot de passe incorrect.");
 }
+exit;
 ?>
