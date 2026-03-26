@@ -6,8 +6,7 @@ require_once 'Classes/Entraineur.php';
 require_once 'DAO/EntraineurDAO.php';
 
 // Envoyer une réponse JSON au client
-function deliver_response($code_statut, $message_statut, $donnees = null)
-{
+function deliver_response($code_statut, $message_statut, $donnees = null) {
     http_response_code($code_statut);
 
     // Configuration des headers CORS et Type de contenu
@@ -37,9 +36,20 @@ if ($methode == 'OPTIONS') {
     exit;
 }
 
-// L'authentification veut QUE la méthode POST
+// Si la méthode est GET, c'est pour vérifier la validité d'un jeton JWT envoyé en Bearer
+if ($methode == 'GET') {
+    $jwt = get_bearer_token();
+    if ($jwt && is_jwt_valid($jwt, 'random')) {
+        deliver_response(200, "Jeton valide");
+    } else {
+        deliver_response(401, "Jeton invalide ou expiré");
+    }
+    exit;
+}
+
+// L'authentification par identifiant veut la méthode POST
 if ($methode != 'POST') {
-    deliver_response(405, "Méthode non autorisée. Il faut utiliser POST.");
+    deliver_response(405, "Méthode non autorisée. Utilisez POST pour le login ou GET pour vérifier un jeton.");
     exit;
 }
 
