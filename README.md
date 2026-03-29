@@ -1,56 +1,52 @@
-# Auth API - Authentification Entraîneurs
+# Service d'Authentification - Auth API
 
-Ceci est une API qui gère l'authentification des utilisateurs (Entraîneurs) en utilisant des jetons JWT pour le projetphp.
+## Introduction
+Cette API gère l'authentification des utilisateurs (Entraîneurs) en utilisant des jetons JWT. Elle permet de sécuriser l'accès aux différentes ressources du projet.
 
 ## Informations de Connexion
-- **URL de Production (API)** : `https://alfred.alwaysdata.net/authapi.php`
-- **Méthode** : `POST`
+- **URL** : `https://alfred.alwaysdata.net/authapi.php`
+- **Méthodes autorisées** : `POST` et `GET`
 - **Base de données** : `alfred_api_auth` (Serveur `mysql-alfred.alwaysdata.net`)
-- **Table** : `Entraineur` (Colonnes : `identifiant`, `mdp`, `nom`, `prenom`, etc.)
+- **Utilisateur** : `alfred`
+- **Mot de passe** : `azertyuiop.@`
 
-## Format des données (Entrée JSON)
-L'API attend un objet JSON structuré comme suit :
+## Fonctionnement des Méthodes
+### 1. Authentification (POST)
+Utilisée pour la connexion initiale. L'API attend un objet JSON contenant l'identifiant et le mot de passe :
 ```json
 {
     "identifiant": "1573357",
     "password": "azertyuiop"
 }
 ```
+**Processus** :
+1. Recherche l'entraîneur dans la table `Entraineur`.
+2. Vérifie le mot de passe en déhashant avec `password_verify()`.
+3. Génère un jeton JWT signé avec une clé secrète (`random`) contenant les informations de l'entraîneur et une date d'expiration (10 minutes).
+4. Retourne le jeton dans le champ `data` de la réponse.
 
-## Opérations effectuées par l'API
-L'API effectue quatre opérations lors d'un appel :
+### 2. Vérification de Jeton (GET)
+Cette méthode est cruciale pour l'interopérabilité entre les services. Elle permet de vérifier si un jeton JWT est toujours valide et n'a pas expiré.
+- **Utilisation** : Doit être accompagnée d'un header `Authorization: Bearer <votre_jeton>`.
+- **Rôle majeur** : Elle est appelée par l'API de gestion sportive (`api_gestion`) à chaque requête entrante pour s'assurer que l'utilisateur est bien authentifié avant de lui donner accès aux données des joueurs ou des matchs.
 
-1. Elle lit `php://input` pour extraire les données JSON et vérifie que `identifiant` et `password` existent.
+---
 
-2. Elle fait appel à la classe `EntraineurDAO` qui interroge la base de données. Elle récupère les informations de l'entraîneur pour voir si l'identifiant existe.
+## Format de la Réponse
+L'API renvoie toujours un objet JSON structuré ainsi :
+- `status_code` : Code HTTP (200, 401, 400, etc.).
+- `status_message` : Description textuelle du résultat.
+- `data` : Contient le jeton (pour POST) ou reste à `null` pour les autres cas.
 
-3. Elle utilise la fonction PHP `password_verify()` pour comparer le mot de passe saisi avec le hash stocké en BD.
+## Liens et Dépendances
+- Ce service constitue le pilier de sécurité du projet.
+- Il est le point de passage obligatoire pour le Frontend avant toute autre action.
+- Il sert de "gardien" pour l'API de gestion sportive qui délègue la vérification des tokens à cette méthode GET.
 
-4. Si tout est correct, elle construit un jeton JWT. Ce jeton est signé avec une clé secrète (`random`) et contient dans le payload les informations de session : 
-- `id_entraineur`
-- `identifiant`
-- `nom`
-- `prenom`
-- `exp` : la date d'expiration (`exp`) fixée à 10 minutes (si non modifiée).
+---
 
-## Format de la Réponse (Sortie)
-L'API renvoie toujours une réponse au format JSON avec un code de statut HTTP approprié :
+## Piste d'amélioration :
+- Actuellement, le mot de passe de l'utilisateur est stocké en clair dans la base de données. Il serait préférable de le stocker de manière sécurisée en utilisant un algorithme de hachage / Cryptage, ou simplement un .env(). On pourrait aussi essayer de faire en sorte que la clé change de manière dynamique.
 
-### Succès (Statut 200)
-```json
-{
-    "status_code": 200,
-    "status_message": "Authentification réussie",
-    "data": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZF9lbnRyYWluZXVyIjoiMSIs..."
-}
-```
-> Note : Le champ `data` contient le jeton JWT complet à utiliser pour les requêtes futures. Il contient donc aussi dans son payload toutes les informations relatives à l'entraineur authentifié.
 
-### Échec (Statut 401 ou 400)
-```json
-{
-    "status_code": 401,
-    "status_message": "Login ou mot de passe incorrect.",
-    "data": null
-}
-```
+PS : On peut tester l'api via Swagger UI en allant sur l'adresse : https://alfred.alwaysdata.net/docs
