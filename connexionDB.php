@@ -1,6 +1,6 @@
 <?php
 // Pour se connecter à la base de données 
-// (Venant tout droit du repo projetPHP, sans aucune modif pour le moment)
+// (les identifiants ne sont plus écrits dans le code : voir README.md)
 
 class Database
 {
@@ -11,10 +11,11 @@ class Database
     private function __construct()
     {
         try {
-            $host = 'mysql-alfred.alwaysdata.net';
-            $bd = 'alfred_api_auth';
-            $utilisateur = 'alfred';
-            $mdp = 'azertyuiop.@';
+            // Configuration : variables d'environnement, avec les valeurs par défaut d'un XAMPP local
+            $host = getenv('DB_HOST') ?: 'localhost';
+            $bd = getenv('DB_NAME') ?: 'equipe_sport_auth';
+            $utilisateur = getenv('DB_USER') ?: 'root';
+            $mdp = getenv('DB_PASSWORD') ?: '';
 
             $this->connexion = new PDO("mysql:host=$host;dbname=$bd;charset=utf8", $utilisateur, $mdp);
 
